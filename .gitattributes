@@ -1,0 +1,6 @@
+# Shell 脚本强制使用 LF（部署到 Linux）
+*.sh text eol=lf
+
+# 其他文本文件自动处理
+*.md text
+*.example text
