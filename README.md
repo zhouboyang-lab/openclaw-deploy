@@ -25,6 +25,7 @@
 ```
 ~/openclaw-deploy/
 ├── openclaw/                     ← git submodule（上游仓库，仅作参考）
+├── Dockerfile                    ← 基于上游镜像 + 自动升级 OpenClaw
 ├── docker-compose.yml            ← 项目自有（基于上游，含自定义）
 ├── .env                          ← 实际配置（gitignored）
 ├── .env.example                  ← 配置模板
@@ -55,11 +56,10 @@ newgrp docker
 cp .env.example .env
 nano .env  # 填写 API_KEY、TELEGRAM_BOT_TOKEN、GEMINI_API_KEY
 
-# 4. 安装并启动
+# 4. 安装并启动（Dockerfile 自动升级 OpenClaw）
 bash scripts/02-install-openclaw.sh
 
-# 5. 升级 OpenClaw 并启用 Gemini 搜索
-docker exec openclaw-gateway npm -g update openclaw
+# 5. 启用 Gemini 搜索（首次部署时执行，配置持久化在 ~/.openclaw/ 中）
 docker exec openclaw-gateway cat /home/node/.openclaw/openclaw.json | \
 python3 -c "
 import sys, json
@@ -77,15 +77,11 @@ bash scripts/03-setup-cron-jobs.sh
 bash scripts/05-verify.sh
 ```
 
-## 容器内额外配置
+## 容器内配置
 
-Docker 镜像自带的 OpenClaw 版本可能较旧，部署后需在容器内完成：
+`Dockerfile` 基于上游镜像自动升级 OpenClaw 到最新版，无需手动操作。
 
-- **升级 OpenClaw**（>= 2026.2.24，支持 Gemini 搜索）
-- **启用 Gemini Web 搜索**（`tools.web.search.provider: "gemini"`）
-- **Gateway controlUi**（非 localhost 绑定时必需）
-
-详见快速部署第 5 步。容器重建后需重新执行。
+首次部署时需启用 Gemini 搜索（写入 `~/.openclaw/openclaw.json`），详见快速部署第 5 步。该配置持久化在数据目录中，容器重建不受影响。
 
 ## 数据目录
 
@@ -141,7 +137,7 @@ git commit -m "update: openclaw submodule to latest"
 2. **Telegram 消息不通**: 确认 Bot Token 正确，服务器能访问 `api.telegram.org`
 3. **Web 搜索不工作**: 确认 `GEMINI_API_KEY` 已配置，OpenClaw 已升级到 >= 2026.2.24，`openclaw.json` 中 `tools.web.search.provider` 为 `gemini`
 4. **定时任务不触发**: `docker exec openclaw-gateway openclaw cron list` 确认任务已注册
-5. **容器重建后搜索失效**: 重新执行 `npm -g update openclaw` 和配置写入
+5. **需要强制重新构建镜像**: `docker compose up -d --build --no-cache`
 
 ## 参考链接
 

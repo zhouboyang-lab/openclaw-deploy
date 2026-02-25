@@ -1,7 +1,8 @@
 services:
   openclaw-gateway:
     container_name: openclaw-gateway
-    image: ${OPENCLAW_IMAGE}
+    build: .
+    image: openclaw-gateway:local
     cap_add:
       - CHOWN
       - SETUID

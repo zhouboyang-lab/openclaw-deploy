@@ -7,6 +7,7 @@
 ```
 ~/openclaw-deploy/
 ├── openclaw/                     ← git submodule（上游仓库，仅作参考）
+├── Dockerfile                    ← 基于上游镜像 + 自动升级 OpenClaw
 ├── docker-compose.yml            ← 项目自有（基于上游，含自定义）
 ├── .env                          ← 实际配置（gitignored）
 ├── .env.example                  ← 配置模板
@@ -46,10 +47,13 @@ cp .env.example .env
 bash scripts/02-install-openclaw.sh
 ```
 
-### 第四步：升级 OpenClaw 并启用 Gemini 搜索
+Dockerfile 会自动升级 OpenClaw 到最新版，无需手动操作。
+
+### 第四步：启用 Gemini 搜索
+
+首次部署时需写入搜索配置（后续容器重建不影响，配置在 `~/.openclaw/` 中持久化）：
 
 ```bash
-docker exec openclaw-gateway npm -g update openclaw
 docker exec openclaw-gateway cat /home/node/.openclaw/openclaw.json | \
 python3 -c "
 import sys, json
@@ -79,7 +83,8 @@ bash scripts/05-verify.sh
 - 数据目录：`~/.openclaw/`（独立于项目代码，迁移时备份此目录）
 - 日志：`docker compose logs`
 - 维护：`bash scripts/maintenance.sh help`
-- 容器重建后需重新执行第四步（npm 升级 + 配置写入）
+- Dockerfile 自动升级 OpenClaw，容器重建无需手动操作
+- `~/.openclaw/openclaw.json` 中的搜索配置持久化，只需首次部署时写入
 - 项目根目录的 `docker-compose.yml` 是独立维护的，不依赖上游 compose 文件
 
 ## 定时任务列表（共 9 个）
