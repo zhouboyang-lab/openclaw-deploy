@@ -6,12 +6,12 @@
 
 ```
 ~/openclaw-deploy/
-├── openclaw/                     ← git submodule（上游仓库，只读）
-│   ├── docker-compose.yml
+├── openclaw/                     ← git submodule（上游仓库，仅作参考）
+│   ├── docker-compose.yml        （上游原版，不直接使用）
 │   ├── init.sh
 │   ├── .env.example
 │   └── ...
-├── docker-compose.override.yml   ← 用户自定义配置
+├── docker-compose.yml            ← 项目自有（基于上游，含自定义）
 ├── .env                          ← 实际配置（gitignored）
 ├── .env.example                  ← 配置模板
 ├── CLAUDE.md
@@ -25,7 +25,7 @@
 └── README.md
 ```
 
-上游仓库通过 git submodule 管理，用户自定义配置通过 `docker-compose.override.yml` 叠加。
+上游仓库通过 git submodule 管理（跟踪更新参考），项目根目录维护独立的 `docker-compose.yml`。
 
 ## 环境要求
 
@@ -210,7 +210,7 @@ git commit -m "update: openclaw submodule to latest"
 - 如果端口 18789 或 18790 被占用，需要在 .env 中修改端口
 - 遇到问题先看日志：`docker compose logs`
 - 日常维护用：`bash scripts/maintenance.sh help`
-- `.env` 中的 `COMPOSE_FILE` 变量让 docker compose 自动找到 submodule 中的 compose 文件
+- 项目根目录的 `docker-compose.yml` 是独立维护的，不依赖上游 compose 文件
 - 容器内 `npm -g update openclaw` 在容器重建后需要重新执行
 
 ## 定时任务列表（共 9 个）
