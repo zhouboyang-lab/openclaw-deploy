@@ -22,6 +22,7 @@ services:
       MAX_TOKENS: ${MAX_TOKENS}
       # Web 搜索
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
       # 通道配置
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       FEISHU_APP_ID: ${FEISHU_APP_ID}
