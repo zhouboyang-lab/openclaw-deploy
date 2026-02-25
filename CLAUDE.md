@@ -2,10 +2,35 @@
 
 你是部署助手，负责在这台 Linux 服务器上部署 OpenClaw 个人 AI 助手。
 
+## 项目结构
+
+```
+~/openclaw-deploy/
+├── openclaw/                     ← git submodule（上游仓库，只读）
+│   ├── docker-compose.yml
+│   ├── init.sh
+│   ├── .env.example
+│   └── ...
+├── docker-compose.override.yml   ← 用户自定义配置
+├── .env                          ← 实际配置（gitignored）
+├── .env.example                  ← 配置模板
+├── CLAUDE.md
+├── scripts/
+│   ├── 01-server-init.sh
+│   ├── 02-install-openclaw.sh
+│   ├── 03-setup-cron-jobs.sh
+│   ├── 04-security-hardening.sh
+│   ├── 05-verify.sh
+│   └── maintenance.sh
+└── README.md
+```
+
+上游仓库通过 git submodule 管理，用户自定义配置通过 `docker-compose.override.yml` 叠加。
+
 ## 项目仓库
 
 ```bash
-git clone https://github.com/zhouboyang-lab/openclaw-deploy.git ~/openclaw-deploy
+git clone --recurse-submodules https://github.com/zhouboyang-lab/openclaw-deploy.git ~/openclaw-deploy
 ```
 
 ## 部署流程
@@ -30,7 +55,7 @@ newgrp docker
 ### 第二步：配置环境变量
 
 ```bash
-cd ~/openclaw
+cd ~/openclaw-deploy
 cp .env.example .env
 ```
 
@@ -47,7 +72,7 @@ cp .env.example .env
 bash scripts/02-install-openclaw.sh
 ```
 
-等待 docker compose up -d 启动完成后，用 `docker ps` 确认容器正在运行。
+脚本会自动初始化 submodule 并启动容器。等待完成后，用 `docker ps` 确认容器正在运行。
 
 ### 第四步：配置 14 个定时任务
 
@@ -71,13 +96,23 @@ bash scripts/05-verify.sh
 
 确保所有检查项 PASS。
 
+## 更新上游仓库
+
+```bash
+cd ~/openclaw-deploy
+git submodule update --remote openclaw
+git add openclaw
+git commit -m "update: openclaw submodule to latest"
+```
+
 ## 注意事项
 
 - 如果不是 Ubuntu 系统，01-server-init.sh 中的 `apt` 命令需要替换为对应的包管理器（yum/dnf）
 - 如果 Docker 已经安装了，脚本会跳过安装步骤
-- 如果端口 3100 或 19990 被占用，需要在 .env 中修改端口
+- 如果端口 18789 或 18790 被占用，需要在 .env 中修改端口
 - 遇到问题先看日志：`docker compose logs`
 - 日常维护用：`bash scripts/maintenance.sh help`
+- `.env` 中的 `COMPOSE_FILE` 变量让 docker compose 自动找到 submodule 中的 compose 文件
 
 ## 定时任务列表（共 14 个）
 

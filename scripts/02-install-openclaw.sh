@@ -1,13 +1,13 @@
 #!/bin/bash
 # ============================================
 # 第二阶段：安装 OpenClaw (CN-IM Docker 版)
+# 使用 git submodule 管理上游仓库
 # 普通用户执行: bash scripts/02-install-openclaw.sh
 # ============================================
 
 set -euo pipefail
 
-DEPLOY_DIR="$HOME/openclaw"
-REPO_URL="https://github.com/justlovemaki/OpenClaw-Docker-CN-IM.git"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "=========================================="
 echo " OpenClaw 安装 (CN-IM Docker 版)"
@@ -24,39 +24,32 @@ if ! docker info &> /dev/null 2>&1; then
   exit 1
 fi
 
-# ---------- 克隆仓库 ----------
+# ---------- 初始化 Submodule ----------
 echo ""
-echo "[1/4] 克隆 OpenClaw-Docker-CN-IM..."
-if [ -d "$DEPLOY_DIR" ]; then
-  echo "目录已存在，拉取最新代码..."
-  cd "$DEPLOY_DIR"
-  git pull
+echo "[1/4] 初始化 OpenClaw submodule..."
+cd "$PROJECT_DIR"
+if [ -f "$PROJECT_DIR/openclaw/docker-compose.yml" ]; then
+  echo "Submodule 已存在，更新到最新..."
+  git submodule update --remote openclaw
 else
-  git clone "$REPO_URL" "$DEPLOY_DIR"
-  cd "$DEPLOY_DIR"
+  git submodule init
+  git submodule update
 fi
 
 # ---------- 配置环境变量 ----------
 echo ""
 echo "[2/4] 配置环境变量..."
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-if [ -f "$DEPLOY_DIR/.env" ]; then
+if [ -f "$PROJECT_DIR/.env" ]; then
   echo ".env 已存在，跳过（如需重新配置请手动编辑）"
-elif [ -f "$SCRIPT_DIR/.env" ]; then
-  cp "$SCRIPT_DIR/.env" "$DEPLOY_DIR/.env"
-  echo "已从部署目录复制 .env"
 else
-  if [ -f "$DEPLOY_DIR/.env.example" ]; then
-    cp "$DEPLOY_DIR/.env.example" "$DEPLOY_DIR/.env"
-  elif [ -f "$SCRIPT_DIR/.env.example" ]; then
-    cp "$SCRIPT_DIR/.env.example" "$DEPLOY_DIR/.env"
+  if [ -f "$PROJECT_DIR/.env.example" ]; then
+    cp "$PROJECT_DIR/.env.example" "$PROJECT_DIR/.env"
   fi
   echo ""
   echo "================================================"
   echo " 请编辑 .env 文件填写你的配置："
-  echo "   nano $DEPLOY_DIR/.env"
+  echo "   nano $PROJECT_DIR/.env"
   echo ""
   echo " 至少需要配置："
   echo "   - API_KEY (AI 模型的 API Key)"
@@ -69,14 +62,14 @@ fi
 # ---------- 创建数据目录 ----------
 echo ""
 echo "[3/4] 创建持久化数据目录..."
-mkdir -p "$DEPLOY_DIR/data/config"
-mkdir -p "$DEPLOY_DIR/data/workspace"
+mkdir -p "$HOME/.openclaw/config"
+mkdir -p "$HOME/.openclaw/workspace"
 
 # ---------- 启动服务 ----------
 echo ""
 echo "[4/4] 启动 OpenClaw..."
 
-cd "$DEPLOY_DIR"
+cd "$PROJECT_DIR"
 
 # 优先使用 docker compose（V2），回退到 docker-compose（V1）
 if docker compose version &> /dev/null 2>&1; then
@@ -102,7 +95,7 @@ if docker compose ps 2>/dev/null | grep -q "Up" || docker-compose ps 2>/dev/null
   echo "服务状态:"
   docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null
   echo ""
-  echo "访问 Dashboard: http://<YOUR_SERVER_IP>:19990"
+  echo "访问 Dashboard: http://<YOUR_SERVER_IP>:18790"
   echo ""
   echo "下一步："
   echo "  1. 在 Telegram 中找到你的 Bot，发送一条消息测试"

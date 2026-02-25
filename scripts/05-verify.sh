@@ -47,23 +47,23 @@ fi
 echo ""
 echo "[3/6] 检查 Gateway 端口..."
 if command -v curl &> /dev/null; then
-  curl -s --connect-timeout 5 http://localhost:3100/health &> /dev/null 2>&1
-  check "Gateway 端口 3100 响应正常" "$?"
+  curl -s --connect-timeout 5 http://localhost:18789/health &> /dev/null 2>&1
+  check "Gateway 端口 18789 响应正常" "$?"
 else
   # fallback: 检查端口是否监听
-  ss -tlnp 2>/dev/null | grep -q ":3100" 2>/dev/null
-  check "Gateway 端口 3100 正在监听" "$?"
+  ss -tlnp 2>/dev/null | grep -q ":18789" 2>/dev/null
+  check "Gateway 端口 18789 正在监听" "$?"
 fi
 
 # ---------- 4. Dashboard 端口 ----------
 echo ""
 echo "[4/6] 检查 Dashboard..."
 if command -v curl &> /dev/null; then
-  curl -s --connect-timeout 5 http://localhost:19990 &> /dev/null 2>&1
-  check "Dashboard 端口 19990 响应正常" "$?"
+  curl -s --connect-timeout 5 http://localhost:18790 &> /dev/null 2>&1
+  check "Dashboard 端口 18790 响应正常" "$?"
 else
-  ss -tlnp 2>/dev/null | grep -q ":19990" 2>/dev/null
-  check "Dashboard 端口 19990 正在监听" "$?"
+  ss -tlnp 2>/dev/null | grep -q ":18790" 2>/dev/null
+  check "Dashboard 端口 18790 正在监听" "$?"
 fi
 
 # ---------- 5. 定时任务 ----------

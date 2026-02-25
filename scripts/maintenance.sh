@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-DEPLOY_DIR="$HOME/openclaw"
+DEPLOY_DIR="$HOME/openclaw-deploy"
 ACTION="${1:-help}"
 
 cd "$DEPLOY_DIR" 2>/dev/null || {

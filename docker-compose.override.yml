@@ -1,0 +1,6 @@
+# 用户自定义配置（叠加在上游 openclaw/docker-compose.yml 之上）
+# 在此添加上游 compose 文件中没有的自定义配置
+services:
+  openclaw-gateway:
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
