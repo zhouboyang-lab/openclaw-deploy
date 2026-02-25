@@ -1,150 +1,150 @@
-# OpenClaw 部署方案 — Oracle Cloud 免费实例
+# OpenClaw Deploy
 
-> 周博洋的 7x24 小时个人 AI 助手，部署在 Oracle Cloud 免费 ARM 实例上。
+> 个人 AI 助手，部署在 Oracle Cloud 免费实例上。基于 [OpenClaw](https://github.com/openclaw/openclaw) + [CN-IM Docker](https://github.com/justlovemaki/OpenClaw-Docker-CN-IM)。
 
-## 功能概览
+## 环境要求
 
-| 功能 | 说明 | 接收人 |
-|------|------|--------|
-| AI 领域日报/周报 | 大模型、Agent、VLA、端侧部署动态 | 周博洋 |
-| 西安求职监控 | AI/CS 岗位、校招实习信息 | 周博洋 |
-| 申博信息追踪 | 博士招生、导师动态 | 周博洋 |
-| 考公考编信息 | 西安/陕西公务员、事业单位、教编 | 女朋友 |
-| 早安播报 | 天气、日程、励志语 | 周博洋 |
-| 论文推荐 | arXiv 高质量论文 | 周博洋 |
-| 会议 DDL | AI 顶会截稿提醒 | 周博洋 |
-| GitHub Trending | AI/ML 热门开源项目 | 周博洋 |
-| 月度复盘 | 结构化复盘提醒 | 周博洋 |
-
-## 技术栈
-
-- **服务器**: Oracle Cloud VM.Standard.A1.Flex (4 OCPU / 24GB RAM / 200GB)
-- **系统**: Ubuntu 24.04 (aarch64)
-- **核心**: [OpenClaw](https://github.com/openclaw/openclaw) + [CN-IM Docker](https://github.com/justlovemaki/OpenClaw-Docker-CN-IM)
-- **AI 模型**: OpenRouter 免费模型 → DeepSeek V3 → Claude/GPT-4o
-- **通讯渠道**: Telegram → 微信 → 钉钉
-
-## 预估成本
-
-| 项目 | 月费 |
+| 项目 | 要求 |
 |------|------|
-| Oracle Cloud 服务器 | 免费 |
-| OpenRouter 免费模型 | 免费 |
-| DeepSeek V3（推荐） | ~$3-5/月 |
+| 系统 | Ubuntu 20.04+（其他 Linux 需改包管理器） |
+| Docker | 20.10+（含 docker compose V2） |
+| 内存 | 最低 1GB，推荐 2GB+ |
+| 磁盘 | 最低 10GB 可用空间 |
+| 网络 | 需访问 Telegram API、Google API、AI 模型 API |
 
----
+### 必需的 API 密钥
 
-## 部署步骤
+| 密钥 | 用途 | 获取地址 |
+|------|------|---------|
+| `API_KEY` | AI 模型（DeepSeek/OpenRouter/Claude） | 对应平台官网 |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot 通道 | [@BotFather](https://t.me/BotFather) |
+| `GEMINI_API_KEY` | Web 搜索（Gemini Google Search） | [Google AI Studio](https://aistudio.google.com/apikey) |
 
-### 前提条件
+## 项目结构
 
-1. 已创建 Oracle Cloud 账号并升级为 Pay As You Go（防止实例被回收）
-2. 已创建 ARM 实例（VM.Standard.A1.Flex, 4 OCPU, 24GB RAM, Ubuntu 24.04）
-3. 已下载 SSH 私钥，能 SSH 连接到实例
-4. 已获取 Telegram Bot Token（@BotFather 创建）
-
-### 第一步：上传部署脚本到服务器
-
-```bash
-# 在本地执行，将整个项目上传到服务器
-scp -i ~/.ssh/oracle_key -r ./scripts ./env.example \
-  ubuntu@<YOUR_SERVER_IP>:~/openclaw-deploy/
+```
+~/openclaw-deploy/
+├── openclaw/                     ← git submodule（上游仓库，仅作参考）
+├── docker-compose.yml            ← 项目自有（基于上游，含自定义）
+├── .env                          ← 实际配置（gitignored）
+├── .env.example                  ← 配置模板
+├── scripts/
+│   ├── 01-server-init.sh         系统初始化（Docker、iptables、swap）
+│   ├── 02-install-openclaw.sh    安装 OpenClaw
+│   ├── 03-setup-cron-jobs.sh     配置定时任务
+│   ├── 04-security-hardening.sh  安全加固（可选）
+│   ├── 05-verify.sh              部署验证
+│   └── maintenance.sh            日常维护
+├── CLAUDE.md                     ← AI 助手部署指令
+└── README.md
 ```
 
-### 第二步：服务器初始化
+## 快速部署
 
 ```bash
-ssh -i ~/.ssh/oracle_key ubuntu@<YOUR_SERVER_IP>
+# 1. 克隆仓库
+git clone --recurse-submodules https://github.com/zhouboyang-lab/openclaw-deploy.git ~/openclaw-deploy
 cd ~/openclaw-deploy
+
+# 2. 系统初始化
 chmod +x scripts/*.sh
 sudo bash scripts/01-server-init.sh
-```
+newgrp docker
 
-### 第三步：安装 OpenClaw
-
-```bash
-bash scripts/02-install-openclaw.sh
-```
-
-安装前需编辑 `.env` 文件配置 API Key 和 Bot Token：
-```bash
+# 3. 配置环境变量
 cp .env.example .env
-nano .env  # 填写你的密钥
-```
+nano .env  # 填写 API_KEY、TELEGRAM_BOT_TOKEN、GEMINI_API_KEY
 
-### 第四步：配置定时任务
+# 4. 安装并启动
+bash scripts/02-install-openclaw.sh
 
-```bash
+# 5. 升级 OpenClaw 并启用 Gemini 搜索
+docker exec openclaw-gateway npm -g update openclaw
+docker exec openclaw-gateway cat /home/node/.openclaw/openclaw.json | \
+python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+data['tools'] = {'web': {'search': {'provider': 'gemini'}}}
+data.setdefault('gateway', {})['controlUi'] = {'dangerouslyAllowHostHeaderOriginFallback': True}
+print(json.dumps(data, indent=2))
+" > /tmp/oc.json && docker cp /tmp/oc.json openclaw-gateway:/home/node/.openclaw/openclaw.json
+docker restart openclaw-gateway
+
+# 6. 配置定时任务
 bash scripts/03-setup-cron-jobs.sh
-```
 
-### 第五步：安全加固
-
-```bash
-sudo bash scripts/04-security-hardening.sh
-```
-
-### 第六步：验证部署
-
-```bash
+# 7. 验证
 bash scripts/05-verify.sh
 ```
 
----
+## 容器内额外配置
 
-## 定时任务总览
+Docker 镜像自带的 OpenClaw 版本可能较旧，部署后需在容器内完成：
 
-| 时间 | 任务 | 接收人 |
-|------|------|--------|
-| 每天 07:00 | 早安播报（天气+日程） | 周博洋 |
-| 每天 07:30 | AI 领域日报 | 周博洋 |
-| 周一、四 08:00 | 申博信息追踪 | 周博洋 |
-| 每天 08:30 | 考公考编信息 | 女朋友 |
-| 每天 09:00 | 西安求职信息 | 周博洋 |
-| 每 3 小时 | AI 重大快讯（有才推） | 周博洋 |
-| 每周一 09:00 | 会议 DDL 提醒 | 周博洋 |
-| 周二、五 21:00 | 论文推荐 | 周博洋 |
-| 每周三 10:00 | 校招专场监控 | 周博洋 |
-| 每周日 19:00 | 考编下周日历 | 女朋友 |
-| 每周日 20:00 | AI 周报 | 周博洋 |
-| 每天 21:00 | GitHub Trending | 周博洋 |
-| 每月 1 号 | 博导动态更新 | 周博洋 |
-| 每月 28 号 | 月度复盘提醒 | 周博洋 |
+- **升级 OpenClaw**（>= 2026.2.24，支持 Gemini 搜索）
+- **启用 Gemini Web 搜索**（`tools.web.search.provider: "gemini"`）
+- **Gateway controlUi**（非 localhost 绑定时必需）
 
----
+详见快速部署第 5 步。容器重建后需重新执行。
+
+## 数据目录
+
+所有运行时数据存储在 `~/.openclaw/`，独立于项目代码：
+
+| 目录 | 内容 |
+|------|------|
+| `agents/` | 对话历史和会话数据 |
+| `cron/` | 定时任务数据和执行记录 |
+| `credentials/` | 凭证存储 |
+| `workspace/` | 工作空间文件 |
+| `openclaw.json` | 核心配置（搜索、模型、Gateway） |
+
+**迁移服务器时，备份 `~/.openclaw/` 即可保留所有数据。**
+
+## 定时任务（9 个）
+
+| 时间 | 任务 |
+|------|------|
+| 每天 07:00 | 早安播报（天气+日程） |
+| 周一四 08:00 | 申博追踪（含导师动态） |
+| 周一三五 08:30 | 考公考编信息 |
+| 每天 09:00 | 求职监控（校招+社招，重点央企国企） |
+| 每周五 20:00 | GitHub Trending |
+| 周二五 21:00 | 论文推荐 |
+| 每周日 20:00 | AI 周报 |
+| 每周一 09:00 | 会议 DDL 提醒 |
+| 每月 28 号 | 月度复盘提醒 |
 
 ## 日常维护
 
 ```bash
-# 查看 OpenClaw 状态
-bash scripts/maintenance.sh status
-
-# 查看日志
-bash scripts/maintenance.sh logs
-
-# 重启服务
-bash scripts/maintenance.sh restart
-
-# 更新 OpenClaw
-bash scripts/maintenance.sh update
-
-# 备份配置
-bash scripts/maintenance.sh backup
+bash scripts/maintenance.sh status      # 服务状态
+bash scripts/maintenance.sh logs         # 查看日志
+bash scripts/maintenance.sh restart      # 重启服务
+bash scripts/maintenance.sh update       # 更新镜像
+bash scripts/maintenance.sh backup       # 备份配置
+bash scripts/maintenance.sh cron-list    # 查看定时任务
 ```
 
----
+## 更新上游仓库
+
+```bash
+cd ~/openclaw-deploy
+git submodule update --remote openclaw
+git add openclaw
+git commit -m "update: openclaw submodule to latest"
+```
 
 ## 故障排查
 
-1. **OpenClaw 无法启动**: 检查 `docker-compose logs` 输出
+1. **容器无法启动**: `docker compose logs` 查看日志
 2. **Telegram 消息不通**: 确认 Bot Token 正确，服务器能访问 `api.telegram.org`
-3. **定时任务不触发**: 运行 `openclaw cron list` 确认任务已注册
-4. **服务器被回收**: 确保已升级为 Pay As You Go 账户
+3. **Web 搜索不工作**: 确认 `GEMINI_API_KEY` 已配置，OpenClaw 已升级到 >= 2026.2.24，`openclaw.json` 中 `tools.web.search.provider` 为 `gemini`
+4. **定时任务不触发**: `docker exec openclaw-gateway openclaw cron list` 确认任务已注册
+5. **容器重建后搜索失效**: 重新执行 `npm -g update openclaw` 和配置写入
 
 ## 参考链接
 
 - [OpenClaw 官方文档](https://docs.openclaw.ai/)
-- [OpenClaw GitHub](https://github.com/openclaw/openclaw)
 - [CN-IM Docker 版本](https://github.com/justlovemaki/OpenClaw-Docker-CN-IM)
-- [Oracle Cloud 部署指南](https://docs.openclaw.ai/platforms/oracle)
 - [Cron Jobs 文档](https://docs.openclaw.ai/automation/cron-jobs)
